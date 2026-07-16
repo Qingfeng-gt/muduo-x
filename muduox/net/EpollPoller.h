@@ -27,7 +27,7 @@ private:
 
     int epollFd_;
     std::vector<epoll_event> events_;
-    std::map<int, Channel*> channels_;
+    std::map<intptr_t, Channel*> channels_;
 };
 
 } // namespace muduox

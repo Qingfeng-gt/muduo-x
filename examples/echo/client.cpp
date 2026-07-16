@@ -3,37 +3,25 @@
 #include "muduox/net/InetAddress.h"
 #include "muduox/net/Channel.h"
 #include "muduox/net/SocketOps.h"
+#include "muduox/base/Platform.h"
 #include <iostream>
 #include <string>
 #include <cstring>
 #include <cassert>
-#include <cerrno>
 
 int main() {
     muduox::sockets::startup();
 
-    // ── 创建非阻塞 socket，连接服务器 ──
+    // ── 1. 先创建 EventLoop（含 IOCP） ──
+    muduox::EventLoop loop;
+
+    // ── 2. 创建非阻塞 socket ──
     muduox::Socket sock;
     muduox::InetAddress serverAddr("127.0.0.1", 8888);
-    const auto& sa = serverAddr.getSockAddr();
 
-    int ret = ::connect(sock.fd(), (const sockaddr*)&sa, sizeof(sa));
-    if (ret < 0) {
-#ifdef _WIN32
-        if (WSAGetLastError() != WSAEWOULDBLOCK) {
-            std::cerr << "connect failed: " << WSAGetLastError() << std::endl;
-            return 1;
-        }
-#else
-        if (errno != EINPROGRESS) {
-            std::cerr << "connect failed: " << strerror(errno) << std::endl;
-            return 1;
-        }
-#endif
-        std::cout << "Connecting to 127.0.0.1:8888 ..." << std::endl;
-    }
-
-    muduox::EventLoop loop;
+    // ── 3. 创建 Channel 并注册到 IOCP（必须早于 connect！） ──
+    // Windows IOCP: CreateIoCompletionPort 必须在 connect() 之前调用，
+    // 否则 socket 进入"正在连接"状态后 CreateIoCompletionPort 会返回 ERROR_INVALID_PARAMETER。
     muduox::Channel channel(&loop, sock.fd());
     std::string sendMsg = "Hello echo server!";
     bool writeDone = false;
@@ -41,7 +29,7 @@ int main() {
     // ── 读回调 ──
     channel.setReadCallback([&]() {
         char buf[1024];
-        int n = ::recv(sock.fd(), buf, sizeof(buf), 0);
+        int n = static_cast<int>(SOCKET_RECV(sock.fd(), buf, sizeof(buf)));
         if (n > 0) {
             std::string echoed(buf, n);
             std::cout << "Received: " << echoed << std::endl;
@@ -52,25 +40,21 @@ int main() {
             std::cout << "Server closed connection." << std::endl;
             loop.quit();
         } else {
-            std::cerr << "recv error: " << strerror(errno) << std::endl;
+            std::cerr << "recv error: " << SOCKET_GET_ERROR() << std::endl;
             loop.quit();
         }
     });
 
     // ── 写回调：连接完成后发送数据 ──
     channel.setWriteCallback([&]() {
-        if (writeDone) return;  // 防止重复触发
+        if (writeDone) return;
 
         // 检查非阻塞 connect 是否真正成功
         int err = 0;
         socklen_t len = sizeof(err);
-#ifdef _WIN32
-        ::getsockopt(sock.fd(), SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-#else
-        ::getsockopt(sock.fd(), SOL_SOCKET, SO_ERROR, &err, &len);
-#endif
+        SOCKET_GETSOCKOPT(sock.fd(), SOL_SOCKET, SO_ERROR, &err, &len);
         if (err != 0) {
-            std::cerr << "Connect error: " << strerror(err) << std::endl;
+            std::cerr << "Connect error: " << err << std::endl;
             loop.quit();
             return;
         }
@@ -78,16 +62,9 @@ int main() {
         writeDone = true;
         std::cout << "Connected. Sending: " << sendMsg << std::endl;
 
-        int n = ::send(sock.fd(), sendMsg.data(),
-                       static_cast<int>(sendMsg.size()),
-#ifdef _WIN32
-                       0
-#else
-                       MSG_NOSIGNAL
-#endif
-                       );
+        int n = static_cast<int>(SOCKET_SEND(sock.fd(), sendMsg.data(), sendMsg.size()));
         if (n < 0) {
-            std::cerr << "send failed: " << strerror(errno) << std::endl;
+            std::cerr << "send failed: " << SOCKET_GET_ERROR() << std::endl;
             loop.quit();
         } else {
             channel.disableWriting();
@@ -99,8 +76,22 @@ int main() {
         loop.quit();
     });
 
+    // ── 注册到 IOCP（先于 connect）──
     channel.enableWriting();
     channel.enableReading();
+
+    // ── 4. 非阻塞 connect（必须在 CreateIoCompletionPort 之后）──
+    std::cout << "Connecting to 127.0.0.1:8888 ..." << std::endl;
+    int ret = sock.connect(serverAddr);
+    if (ret < 0) {
+        int err = SOCKET_GET_ERROR();
+        if (err != SOCKET_EWOULDBLOCK) {
+            std::cerr << "connect failed: " << err << std::endl;
+            return 1;
+        }
+    }
+
+
 
     std::cout << "Starting event loop..." << std::endl;
     loop.loop();

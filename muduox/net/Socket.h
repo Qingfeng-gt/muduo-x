@@ -6,6 +6,7 @@
 #define MUDUOX_SOCKET_H
 
 #include "muduox/base/noncopyable.h"
+#include <cstdint>
 
 
 
@@ -21,20 +22,22 @@ class InetAddress;
 class Socket : noncopyable {
 public:
     /// 接管已有 fd
-    explicit Socket(int sockfd) : sockfd_(sockfd) {}
+    explicit Socket(intptr_t sockfd) : sockfd_(sockfd) {}
 
     /// 创建一个新的 TCP 非阻塞 socket
     Socket();
 
     ~Socket();
 
-    int fd() const { return sockfd_; }
+    intptr_t fd() const { return sockfd_; }
 
     // ---- 服务端操作 ----
     void bind(const InetAddress& addr);
     void listen();
     // 返回新连接的 fd，失败返回 -1
-    int  accept(InetAddress* peerAddr);
+    intptr_t accept(InetAddress* peerAddr);
+
+    int connect(InetAddress addr);
 
     // ---- 连接关闭 ----
     void shutdownWrite();
@@ -45,7 +48,7 @@ public:
     void setKeepAlive(bool on);// 保持连接
 
 private:
-    const int sockfd_;
+    const intptr_t sockfd_;
 };
 
 } // namespace muduox

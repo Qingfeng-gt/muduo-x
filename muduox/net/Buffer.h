@@ -5,7 +5,8 @@
 #ifndef MUDUOX_BUFFER_H
 #define MUDUOX_BUFFER_H
 
-#include <cstddef>
+#include "muduox/base/Platform.h"
+
 #include <vector>
 #include <string>
 #include <string_view>
@@ -47,7 +48,7 @@ public:
 
     // ---- 从 fd 读 ----
     // 返回读取的字节数，返回 0 表示对端关闭
-    ssize_t readFd(int fd, int* savedErrno);
+    ssize_t readFd(intptr_t fd, int* savedErrno);
 
     // ---- 容量 ----
     size_t writableBytes() const { return buffer_.size() - writeIndex_; }

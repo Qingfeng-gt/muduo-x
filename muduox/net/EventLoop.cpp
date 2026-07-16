@@ -5,12 +5,7 @@
 #include "EventLoop.h"
 #include "Channel.h"
 #include "SocketOps.h"
-
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-#include <sys/socket.h>
-#endif
+#include "muduox/base/Platform.h"
 
 #include <cassert>
 
@@ -33,7 +28,8 @@ EventLoop::EventLoop() {
     poller_ = Poller::create(this);
 
     // 创建 wakeup 用的 socketpair
-    sockets::createTcpSocketPair(wakeupFds_);
+    intptr_t ret = sockets::createTcpSocketPair(wakeupFds_);
+    assert(ret == 0);  (void)ret;
 
     // 创建 wakeup channel，监听 wakeupFds_[0] 的可读事件
     wakeupChannel_ = std::make_unique<Channel>(this, wakeupFds_[0]);
@@ -110,18 +106,12 @@ void EventLoop::removeChannel(Channel* channel) {
 
 void EventLoop::wakeup() {
     uint64_t one = 1;
-    ::send(wakeupFds_[1], &one, sizeof(one),
-#ifdef _WIN32
-           0
-#else
-           MSG_NOSIGNAL
-#endif
-           );
+    SOCKET_SEND(wakeupFds_[1], &one, sizeof(one));
 }
 
 void EventLoop::handleWakeup() {
     uint64_t buf;
-    ::recv(wakeupFds_[0], &buf, sizeof(buf), 0);
+    SOCKET_RECV(wakeupFds_[0], &buf, sizeof(buf));
 }
 
 void EventLoop::doPendingFunctors() {

@@ -46,7 +46,7 @@ public:
 
 private:
     // Acceptor 回调：接受到新连接
-    void newConnection(int sockfd, const InetAddress& peerAddr);
+    void newConnection(intptr_t sockfd, const InetAddress& peerAddr);
 
     // 连接关闭时从列表中移除
     void removeConnection(const TcpConnectionPtr& conn);

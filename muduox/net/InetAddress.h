@@ -6,20 +6,8 @@
 #define MUDUOX_INETADDRESS_H
 
 #include "muduox/base/copyable.h"
-#include <cstdint>
+#include "muduox/base/Platform.h"
 #include <string>
-
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-
-#include <netinet/in.h>
-
-#endif
-
-
-// 前向声明，避免在头文件中包含平台相关头文件
-struct sockaddr_in;
 
 namespace muduox {
 

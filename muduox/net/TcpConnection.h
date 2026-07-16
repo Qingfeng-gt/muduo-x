@@ -28,7 +28,7 @@ public:
     enum State { kConnecting, kConnected, kDisconnecting, kDisconnected };
 
     TcpConnection(EventLoop* loop, const std::string& name,
-                  int sockfd, const InetAddress& localAddr,
+                  intptr_t sockfd, const InetAddress& localAddr,
                   const InetAddress& peerAddr);
     ~TcpConnection();
 

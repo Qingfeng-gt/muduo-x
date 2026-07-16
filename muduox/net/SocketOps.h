@@ -15,20 +15,20 @@ namespace muduox::sockets {
     void cleanup();
 
     // ---- 创建 ----
-    int createTcpSocket();         // socket() + nonblock
-    int createTcpSocketPair(int fds[2]); // wakeup 用
+    intptr_t createTcpSocket();            // socket() + nonblock
+    intptr_t createTcpSocketPair(intptr_t fds[2]); // wakeup 用
 
     // ---- 操作 ----
-    void bind(int fd, uint32_t ip, uint16_t port);
-    void listen(int fd);
-    int  accept(int fd, uint32_t* ip, uint16_t* port);
-    void close(int fd);
-    void shutdownWrite(int fd);
+    void bind(intptr_t fd, uint32_t ip, uint16_t port);
+    void listen(intptr_t fd);
+    intptr_t accept(intptr_t fd, uint32_t* ip, uint16_t* port);
+    void close(intptr_t fd);
+    void shutdownWrite(intptr_t fd);
 
-    void setNonBlocking(int fd);
-    void setReuseAddr(int fd, bool on);
-    void setTcpNoDelay(int fd, bool on);
-    void setKeepAlive(int fd, bool on);
+    void setNonBlocking(intptr_t fd);
+    void setReuseAddr(intptr_t fd, bool on);
+    void setTcpNoDelay(intptr_t fd, bool on);
+    void setKeepAlive(intptr_t fd, bool on);
 
     // ---- 地址 ----
     uint32_t hostToNetwork32(uint32_t host);

@@ -5,6 +5,7 @@
 #ifndef MUDUOX_CHANNEL_H
 #define MUDUOX_CHANNEL_H
 
+#include "muduox/base/Platform.h"
 #include "muduox/base/noncopyable.h"
 #include <functional>
 #include <any>
@@ -28,10 +29,10 @@ public:
 
     using EventCallback = std::function<void()>;
 
-    Channel(EventLoop* loop, int fd);
+    Channel(EventLoop* loop, intptr_t fd);
     ~Channel();
 
-    int  fd() const { return fd_; }
+    intptr_t fd() const { return fd_; }
     int  events() const { return events_; }
     void setRevents(int revt) { revents_ = revt; }
 
@@ -71,7 +72,7 @@ private:
     void update();  // 通知 EventLoop 更新 Poller 中的事件注册
 
     EventLoop* loop_;
-    const int fd_;
+    const intptr_t fd_;
     int events_  = kNoneEvent;
     int revents_ = kNoneEvent;
     int index_   = -1;  // Poller 内部索引（epoll: 0 表示已添加; IOCP: 类似）

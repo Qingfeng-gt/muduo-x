@@ -65,7 +65,7 @@ private:
     std::thread::id threadId_;
 
     // ---- wakeup 机制(唤醒机制) ----
-    int wakeupFds_[2]{};            // [0]=读端, [1]=写端 (socketpair)
+    intptr_t wakeupFds_[2]{};            // [0]=读端, [1]=写端 (socketpair)
     std::unique_ptr<Channel> wakeupChannel_;
 
     // ---- 活跃 channel 列表 ----

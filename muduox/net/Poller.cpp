@@ -3,14 +3,17 @@
 //
 
 #include "Poller.h"
+#ifdef _WIN32
+#include "IocpPoller.h"
+#else
 #include "EpollPoller.h"
+#endif
 
 namespace muduox {
 
 std::unique_ptr<Poller> Poller::create(EventLoop* loop) {
 #ifdef _WIN32
-    // TODO: return std::make_unique<IocpPoller>(loop);
-    return nullptr;  // Windows 暂不支持
+    return std::make_unique<IocpPoller>(loop);
 #else
     return std::make_unique<EpollPoller>(loop);
 #endif

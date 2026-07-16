@@ -27,10 +27,10 @@ void Socket::listen() {
     sockets::listen(sockfd_);
 }
 
-int Socket::accept(InetAddress* peerAddr) {
+intptr_t Socket::accept(InetAddress* peerAddr) {
     uint32_t ip = 0;
     uint16_t port = 0;
-    int connfd = sockets::accept(sockfd_, &ip, &port);
+    intptr_t connfd = sockets::accept(sockfd_, &ip, &port);
     if (connfd >= 0 && peerAddr) {
         sockaddr_in addr{};
         addr.sin_family = AF_INET;
@@ -39,6 +39,12 @@ int Socket::accept(InetAddress* peerAddr) {
         peerAddr->setSockAddr(addr);
     }
     return connfd;
+}
+
+int Socket::connect(InetAddress addr) {
+    auto sa = addr.getSockAddr();
+    int ret = SOCKET_CONNECT(fd(), reinterpret_cast<const sockaddr*>(&sa), sizeof(sa));
+    return ret;
 }
 
 void Socket::shutdownWrite() {

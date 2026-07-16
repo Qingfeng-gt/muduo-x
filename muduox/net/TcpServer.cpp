@@ -17,7 +17,7 @@ TcpServer::TcpServer(EventLoop* loop, const InetAddress& listenAddr,
       acceptor_(std::make_unique<Acceptor>(loop, listenAddr))
 {
     acceptor_->setNewConnectionCallback(
-        [this](int sockfd, const InetAddress& peerAddr) {
+        [this](intptr_t sockfd, const InetAddress& peerAddr) {
             newConnection(sockfd, peerAddr);
         });
 }
@@ -33,7 +33,7 @@ void TcpServer::start() {
     }
 }
 
-void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr) {
+void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     loop_->assertInLoopThread();
 
     char buf[64];

@@ -7,11 +7,12 @@
 #include "Socket.h"
 #include "Channel.h"
 #include "SocketOps.h"
+#include "muduox/base/Platform.h"
 
 namespace muduox {
 
 TcpConnection::TcpConnection(EventLoop* loop, const std::string& name,
-                             int sockfd, const InetAddress& localAddr,
+                             intptr_t sockfd, const InetAddress& localAddr,
                              const InetAddress& peerAddr)
     : loop_(loop),
       name_(name),
@@ -66,15 +67,9 @@ void TcpConnection::handleRead() {
 
 void TcpConnection::handleWrite() {
     if (channel_->isWriting()) {
-        ssize_t n = ::send(channel_->fd(),
-                           outputBuffer_.peek(),
-                           static_cast<int>(outputBuffer_.readableBytes()),
-#ifdef _WIN32
-                           0
-#else
-                           MSG_NOSIGNAL
-#endif
-                           );
+        ssize_t n = SOCKET_SEND(channel_->fd(),
+                                outputBuffer_.peek(),
+                                outputBuffer_.readableBytes());
         if (n > 0) {
             outputBuffer_.retrieve(n);
             if (outputBuffer_.empty()) {
@@ -138,13 +133,7 @@ void TcpConnection::sendInLoop(const char* data, size_t len) {
 
     // 如果当前没有待发数据（output buffer 为空），尝试直接发送
     if (!channel_->isWriting() && outputBuffer_.empty()) {
-        ssize_t n = ::send(channel_->fd(), data, static_cast<int>(len),
-#ifdef _WIN32
-                           0
-#else
-                           MSG_NOSIGNAL
-#endif
-                           );
+        ssize_t n = SOCKET_SEND(channel_->fd(), data, len);
         if (n >= 0) {
             if (static_cast<size_t>(n) >= len) {
                 // 全部发完

@@ -8,7 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(WIN32)
     set(MUDUO_PLATFORM "windows")
     set(PLATFORM_LIBS ws2_32 mswsock)
-#    set(MUDUO_POLLER_SRC muduox/net/IocpPoller.cpp)
+    set(MUDUO_POLLER_SRC muduox/net/IocpPoller.cpp)
+    add_definitions(-DNOMINMAX -DWIN32_LEAN_AND_MEAN)
 elseif(APPLE)
     set(MUDUO_PLATFORM "macos")
     set(PLATFORM_LIBS pthread)
@@ -27,7 +28,6 @@ add_library(muduo_net STATIC
         muduox/net/SocketOps.cpp
         muduox/net/Channel.cpp
         muduox/net/EventLoop.cpp
-        muduox/net/EpollPoller.cpp
         muduox/net/Poller.cpp
         muduox/net/Acceptor.cpp
         muduox/net/TcpConnection.cpp

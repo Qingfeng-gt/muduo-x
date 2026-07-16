@@ -8,7 +8,7 @@
 
 namespace muduox {
 
-Channel::Channel(EventLoop* loop, int fd)
+Channel::Channel(EventLoop* loop, intptr_t fd)
     : loop_(loop), fd_(fd) {}
 
 Channel::~Channel() = default;
