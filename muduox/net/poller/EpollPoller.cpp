@@ -4,6 +4,7 @@
 
 #include "EpollPoller.h"
 #include "muduox/net/core/Channel.h"
+#include "muduox/base/logging/Logging.h"
 
 #ifndef _WIN32
 #include <sys/epoll.h>
@@ -64,7 +65,11 @@ void EpollPoller::update(int operation, Channel* channel) {
     if (channel->isWriting()) event.events |= EPOLLOUT;
     event.data.ptr = channel;
 
-    ::epoll_ctl(epollFd_, operation, channel->fd(), &event);
+    int ret = ::epoll_ctl(epollFd_, operation, channel->fd(), &event);
+    if (ret < 0) {
+        LOG_ERROR("epoll_ctl failed: fd={}, op={}, errno={}", channel->fd(), operation, errno);
+        return;
+    }
 
     channel->setIndex(operation == EPOLL_CTL_DEL ? -1 : 0);
     if (operation != EPOLL_CTL_DEL) {

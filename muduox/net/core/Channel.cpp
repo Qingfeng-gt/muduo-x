@@ -14,16 +14,19 @@ Channel::Channel(EventLoop* loop, intptr_t fd)
 Channel::~Channel() = default;
 
 void Channel::handleEvent() {
-    if (revents_ & kErrorEvent) {
+    int revents = revents_;
+    revents_ = kNoneEvent;
+
+    if (revents & kErrorEvent) {
         if (errorCallback_) errorCallback_();
     }
-    if (revents_ & kCloseEvent) {
+    if (revents & kCloseEvent) {
         if (closeCallback_) closeCallback_();
     }
-    if (revents_ & kReadEvent) {
+    if (revents & kReadEvent) {
         if (readCallback_) readCallback_();
     }
-    if (revents_ & kWriteEvent) {
+    if (revents & kWriteEvent) {
         if (writeCallback_) writeCallback_();
     }
 }

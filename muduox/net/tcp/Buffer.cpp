@@ -43,9 +43,9 @@ ssize_t Buffer::readFd(intptr_t fd, int* savedErrno) {
     } else if (static_cast<size_t>(n) <= writableBytes()) {
         writeIndex_ += n;
     } else {
-        // 数据超出了内部缓冲区的剩余空间，栈上的 extrabuf 也收到了数据
+        size_t writable = writableBytes();
         writeIndex_ = buffer_.size();
-        append(extrabuf, n - writableBytes());
+        append(extrabuf, n - writable);
     }
     return n;
 }

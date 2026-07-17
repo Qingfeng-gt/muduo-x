@@ -6,6 +6,7 @@
 #define MUDUOX_LOGGING_H
 
 #include "FixedBuffer.h"
+#include <atomic>
 #include <format>
 #include <functional>
 #include <source_location>
@@ -33,10 +34,12 @@ public:
     using OutputFunc = std::function<void(const char*, int)>;
     using FlushFunc   = std::function<void()>;
 
+    // setOutput/setFlush are not thread-safe against concurrent logging.
+    // Call them once at startup, before starting any logging threads.
     static void   setOutput(OutputFunc f) { g_output   = std::move(f); }
     static void   setFlush(FlushFunc f)   { g_flush    = std::move(f); }
-    static LogLevel logLevel()            { return g_logLevel; }
-    static void   setLogLevel(LogLevel l) { g_logLevel = l; }
+    static LogLevel logLevel()            { return g_logLevel.load(std::memory_order_relaxed); }
+    static void   setLogLevel(LogLevel l) { g_logLevel.store(l, std::memory_order_relaxed); }
 
     // source_location 由日志宏传入
     template <typename... Args>
@@ -64,7 +67,7 @@ private:
 
     inline static OutputFunc g_output   = defaultOutput;
     inline static FlushFunc   g_flush   = defaultFlush;
-    inline static LogLevel    g_logLevel = INFO;
+    inline static std::atomic<LogLevel> g_logLevel = INFO;
 
     // 每线程缓存秒级时间串
     struct TimeCache {

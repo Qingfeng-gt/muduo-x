@@ -3,6 +3,7 @@
 //
 
 #include "SocketOps.h"
+#include "InetAddress.h"
 #include "muduox/base/platform/Platform.h"
 #include <cstdio>
 #include <cstring>
@@ -68,7 +69,7 @@ namespace muduox::sockets {
 
         int connRet = SOCKET_CONNECT(client, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
         if (connRet == SOCKET_ERROR) {
-            if (SOCKET_GET_ERROR() != SOCKET_EWOULDBLOCK) {
+            if (SOCKET_GET_ERROR() != SOCKET_EINPROGRESS) {
                 SOCKET_CLOSE(client);
                 SOCKET_CLOSE(listener);
                 return -1;
@@ -188,6 +189,14 @@ namespace muduox::sockets {
         ::inet_ntop(AF_INET, &ip, buf, static_cast<socklen_t>(size));
         size_t len = ::strlen(buf);
         ::snprintf(buf + len, size - len, ":%u", ::ntohs(port));
+    }
+
+    void getLocalAddr(intptr_t sockfd, InetAddress& addr) {
+        sockaddr_in local{};
+        socklen_t addrLen = sizeof(local);
+        if (::getsockname(SOCKET_FD(sockfd), reinterpret_cast<sockaddr*>(&local), &addrLen) == 0) {
+            addr = InetAddress(local);
+        }
     }
 
 } // namespace muduox::sockets

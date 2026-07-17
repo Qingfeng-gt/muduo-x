@@ -36,6 +36,11 @@ add_library(muduo_net STATIC
         muduox/base/logging/LogFile.cpp
         muduox/base/logging/AsyncLogging.cpp
         muduox/base/logging/Logging.cpp
+        muduox/net/core/ThreadPool.cpp
+        muduox/net/core/ThreadPool.h
+        muduox/net/core/BlockQueue.h
+        muduox/net/core/EventLoopThreadPool.cpp
+        muduox/net/core/EventLoopThreadPool.h
         ${MUDUO_POLLER_SRC}
 )
 

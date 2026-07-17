@@ -12,6 +12,8 @@
 #include <memory>
 #include <string>
 
+#include "muduox/net/core/EventLoopThreadPool.h"
+
 namespace muduox {
 
 class EventLoop;
@@ -28,8 +30,8 @@ class Acceptor;
 //   loop.loop();
 class TcpServer : noncopyable {
 public:
-    TcpServer(EventLoop* loop, const InetAddress& listenAddr,
-              const std::string& name = "TcpServer");
+    explicit TcpServer(const InetAddress& listenAddr,
+              const std::string& name = "TcpServer",int threadNum=4);
     ~TcpServer();
 
     const std::string& name() const { return name_; }
@@ -46,10 +48,11 @@ private:
     void removeConnection(const TcpConnectionPtr& conn);
     void removeConnectionInLoop(const TcpConnectionPtr& conn);
 
-    EventLoop* loop_;
     const std::string name_;
     const InetAddress ipPort_;
+    const int threadNum_;
 
+    EventLoop *loop_;
     std::unique_ptr<Acceptor> acceptor_;
 
     ConnectionCallback    connectionCallback_;
@@ -61,6 +64,8 @@ private:
     using ConnectionMap = std::map<std::string, TcpConnectionPtr>;
     ConnectionMap connections_;
     bool started_ = false;
+
+    std::unique_ptr<thread::EventLoopThreadPool> threadPool_;
 };
 
 } // namespace muduox

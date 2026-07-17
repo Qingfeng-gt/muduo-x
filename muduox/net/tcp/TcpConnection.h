@@ -9,6 +9,7 @@
 #include "muduox/net/core/Callbacks.h"
 #include "InetAddress.h"
 #include "Buffer.h"
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -60,7 +61,7 @@ private:
 
     EventLoop* loop_;
     const std::string name_;
-    State state_ = kConnecting;
+    std::atomic<State> state_ = kConnecting;
 
     std::unique_ptr<Socket> socket_;
     std::unique_ptr<Channel> channel_;

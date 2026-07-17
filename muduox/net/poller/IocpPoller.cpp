@@ -92,10 +92,9 @@ void IocpPoller::updateChannel(Channel* channel) {
             0);
         if (h == nullptr) {
             DWORD err = ::GetLastError();
-            std::fprintf(stderr, "CreateIoCompletionPort failed for fd=%lld (raw=0x%llx), iocp=%p, err=%lu\n",
-                         (long long)channel->fd(), (unsigned long long)channel->fd(),
-                         iocpHandle_, (unsigned long)err);
-            assert(false);
+            std::fprintf(stderr, "IocpPoller: CreateIoCompletionPort failed for fd=%lld, err=%lu, falling back to single thread\n",
+                         (long long)channel->fd(), (unsigned long)err);
+            return;
         }
 
         auto* ctx = new IocpContext;

@@ -25,7 +25,7 @@ public:
     void listen();
     intptr_t accept(InetAddress* peerAddr);
 
-    int connect(InetAddress addr);
+    int connect(const InetAddress& addr);
 
     void shutdownWrite();
 

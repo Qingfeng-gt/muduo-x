@@ -8,7 +8,11 @@
 #include <cstdint>
 #include <cstddef>
 
-namespace muduox::sockets {
+namespace muduox {
+
+class InetAddress;
+
+namespace sockets {
     void startup();
     void cleanup();
 
@@ -31,6 +35,9 @@ namespace muduox::sockets {
     uint32_t networkToHost32(uint32_t net);
     uint16_t networkToHost16(uint16_t net);
     void     toIpPort(char* buf, size_t size, uint32_t ip, uint16_t port);
-}
+    void     getLocalAddr(intptr_t sockfd, InetAddress& addr);
+} // namespace sockets
+
+} // namespace muduox
 
 #endif //MUDUOX_SOCKETOPS_H

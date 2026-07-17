@@ -10,9 +10,8 @@
 int main() {
     muduox::sockets::startup();
 
-    muduox::EventLoop loop;
     muduox::InetAddress listenAddr(8888);
-    muduox::TcpServer server(&loop, listenAddr, "EchoServer");
+    muduox::TcpServer server(listenAddr, "EchoServer", 4);
 
     server.setConnectionCallback([](const muduox::TcpConnectionPtr& conn) {
         LOG_INFO("[{}] {}",
@@ -28,8 +27,10 @@ int main() {
 
     server.start();
     LOG_INFO("Echo server listening on 0.0.0.0:8888");
-    loop.loop();
 
+    while (true) {
+        //其他主线程逻辑
+    }
     muduox::sockets::cleanup();
     return 0;
 }

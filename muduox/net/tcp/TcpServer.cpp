@@ -5,22 +5,21 @@
 #include "TcpServer.h"
 #include "TcpConnection.h"
 #include "Acceptor.h"
+#include "SocketOps.h"
 #include "muduox/net/core/EventLoop.h"
 #include "muduox/base/logging/Logging.h"
 
 namespace muduox {
 
-TcpServer::TcpServer(EventLoop* loop, const InetAddress& listenAddr,
-                     const std::string& name)
-    : loop_(loop),
-      name_(name),
+TcpServer::TcpServer(const InetAddress& listenAddr,
+                     const std::string& name,int  threadNum)
+    : name_(name),
       ipPort_(listenAddr),
-      acceptor_(std::make_unique<Acceptor>(loop, listenAddr))
+      loop_(nullptr),
+      acceptor_(nullptr),
+        threadNum_(threadNum)
 {
-    acceptor_->setNewConnectionCallback(
-        [this](intptr_t sockfd, const InetAddress& peerAddr) {
-            newConnection(sockfd, peerAddr);
-        });
+    threadPool_ = std::make_unique<thread::EventLoopThreadPool>(threadNum_);
 }
 
 TcpServer::~TcpServer() {
@@ -31,6 +30,14 @@ void TcpServer::start() {
     if (!started_) {
         started_ = true;
         LOG_INFO("TcpServer [{}] starting on {}", name_, ipPort_.toIpPort());
+        threadPool_->start();
+        loop_ = threadPool_->getBaseLoop();
+        if (!acceptor_) {
+            acceptor_ = std::make_unique<Acceptor>(loop_,ipPort_);
+            acceptor_->setNewConnectionCallback([this](intptr_t sockfd, const InetAddress& peerAddr) {
+                newConnection(sockfd,peerAddr);
+            });
+        }
         loop_->runInLoop([this]() {
             acceptor_->listen();
         });
@@ -46,15 +53,19 @@ void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     std::string connName = name_ + "-" + buf;
 
     InetAddress localAddr("0.0.0.0", 0);
+    sockets::getLocalAddr(sockfd, localAddr);
+
+    auto new_loop = threadPool_->getNextLoop();
+
     TcpConnectionPtr conn = std::make_shared<TcpConnection>(
-        loop_, connName, sockfd, localAddr, peerAddr);
+        new_loop, connName, sockfd, localAddr, peerAddr);
 
     connections_[connName] = conn;
 
     LOG_INFO("TcpServer [{}] new connection [{}] from {}", name_, connName, peerAddr.toIpPort());
 
     conn->setConnectionCallback(
-        [this, connName](const TcpConnectionPtr& c) {
+        [this](const TcpConnectionPtr& c) {
             if (!c->connected()) {
                 removeConnection(c);
             }
@@ -65,7 +76,9 @@ void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     conn->setMessageCallback(messageCallback_);
     conn->setWriteCompleteCallback(writeCompleteCallback_);
 
-    conn->connectEstablished();
+    new_loop->runInLoop([conn]() {
+        conn->connectEstablished();
+    });
 }
 
 void TcpServer::removeConnection(const TcpConnectionPtr& conn) {
@@ -79,7 +92,7 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn) {
     size_t n = connections_.erase(conn->name());
     if (n > 0) {
         LOG_INFO("TcpServer [{}] connection [{}] removed, {} alive", name_, conn->name(), connections_.size());
-        loop_->queueInLoop([conn]() {
+        conn->getLoop()->queueInLoop([conn]() {
             conn->connectDestroyed();
         });
     }

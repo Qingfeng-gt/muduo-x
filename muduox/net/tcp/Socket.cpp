@@ -41,7 +41,7 @@ intptr_t Socket::accept(InetAddress* peerAddr) {
     return connfd;
 }
 
-int Socket::connect(InetAddress addr) {
+int Socket::connect(const InetAddress& addr) {
     auto sa = addr.getSockAddr();
     int ret = SOCKET_CONNECT(fd(), reinterpret_cast<const sockaddr*>(&sa), sizeof(sa));
     return ret;

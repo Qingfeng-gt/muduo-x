@@ -38,8 +38,10 @@ EventLoop::~EventLoop() {
     wakeupChannel_->disableAll();
     wakeupChannel_->remove();
 
-    sockets::close(wakeupFds_[0]);
-    sockets::close(wakeupFds_[1]);
+    if (wakeupFds_[0] != 0) {
+        sockets::close(wakeupFds_[0]);
+        sockets::close(wakeupFds_[1]);
+    }
 
     t_loopInThisThread = nullptr;
 }

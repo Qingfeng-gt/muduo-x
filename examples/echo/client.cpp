@@ -70,7 +70,7 @@ int main() {
     int ret = sock.connect(serverAddr);
     if (ret < 0) {
         int err = SOCKET_GET_ERROR();
-        if (err != SOCKET_EWOULDBLOCK) {
+        if (err != SOCKET_EINPROGRESS) {
             LOG_ERROR("connect failed: {}", err);
             return 1;
         }
