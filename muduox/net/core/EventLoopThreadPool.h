@@ -15,28 +15,30 @@
 
 namespace muduox::thread {
 
+// 线程内创建 EventLoop（堆分配），负责其完整生命周期
 class EventLoopThread : muduox::noncopyable {
 public:
     EventLoopThread();
     ~EventLoopThread();
 
     EventLoop* startLoop();
-    EventLoop* getLoop() const { return loop_; }
+    EventLoop* getLoop() const { return loop_.get(); }
     void stop();
 
 private:
     void threadFunc();
 
-    EventLoop* loop_ = nullptr;
+    std::unique_ptr<EventLoop> loop_;
     std::thread thread_;
     std::mutex mutex_;
     std::condition_variable cond_;
 };
 
-
+// IO 线程池：接受外部 baseLoop（accept 线程），管理 N 个 IO worker 线程
+// 当 numThreads = 0 时，getNextLoop() 返回 baseLoop_，退化为单线程模式
 class EventLoopThreadPool : muduox::noncopyable {
 public:
-    explicit EventLoopThreadPool(int numThreads);
+    EventLoopThreadPool(EventLoop* baseLoop, int numThreads);
     ~EventLoopThreadPool();
 
     void start();
@@ -45,9 +47,7 @@ public:
     EventLoop* getNextLoop();
 
 private:
-    std::unique_ptr<EventLoopThread> baseThread_;
-    EventLoop* baseLoop_ = nullptr;
-
+    EventLoop* baseLoop_;
     int numThreads_;
     int next_ = 0;
     std::vector<std::unique_ptr<EventLoopThread>> threads_;

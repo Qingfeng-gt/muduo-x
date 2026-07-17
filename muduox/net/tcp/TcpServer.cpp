@@ -12,40 +12,53 @@
 namespace muduox {
 
 TcpServer::TcpServer(const InetAddress& listenAddr,
-                     const std::string& name,int  threadNum)
+                     const std::string& name, int threadNum)
     : name_(name),
       ipPort_(listenAddr),
-      loop_(nullptr),
-      acceptor_(nullptr),
-        threadNum_(threadNum)
-{
-    threadPool_ = std::make_unique<thread::EventLoopThreadPool>(threadNum_);
-}
+      threadNum_(threadNum),
+      acceptThread_(std::make_unique<thread::EventLoopThread>())
+    {}
 
 TcpServer::~TcpServer() {
     LOG_INFO("TcpServer [{}] destroyed", name_);
 }
 
 void TcpServer::start() {
-    if (!started_) {
-        started_ = true;
-        LOG_INFO("TcpServer [{}] starting on {}", name_, ipPort_.toIpPort());
+    if (started_) return;
+    started_ = true;
+
+    auto* acceptLoop = acceptThread_->startLoop();
+
+    if (threadNum_ > 0) {
+        threadPool_ = std::make_unique<thread::EventLoopThreadPool>(acceptLoop, threadNum_);
         threadPool_->start();
-        loop_ = threadPool_->getBaseLoop();
-        if (!acceptor_) {
-            acceptor_ = std::make_unique<Acceptor>(loop_,ipPort_);
-            acceptor_->setNewConnectionCallback([this](intptr_t sockfd, const InetAddress& peerAddr) {
-                newConnection(sockfd,peerAddr);
-            });
-        }
-        loop_->runInLoop([this]() {
-            acceptor_->listen();
-        });
     }
+
+    acceptor_ = std::make_unique<Acceptor>(acceptLoop, ipPort_);
+    acceptor_->setNewConnectionCallback([this](intptr_t sockfd, const InetAddress& peerAddr) {
+        newConnection(sockfd, peerAddr);
+    });
+
+    acceptLoop->runInLoop([this]() {
+        acceptor_->listen();
+    });
+
+    LOG_INFO("TcpServer [{}] started on {}", name_, ipPort_.toIpPort());
+}
+
+void TcpServer::stop() {
+    if (!started_) return;
+    started_ = false;
+
+    // 先销毁 Acceptor（依赖 accept loop）
+    acceptor_.reset();
+
+    acceptThread_->stop();
 }
 
 void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
-    loop_->assertInLoopThread();
+    auto* acceptLoop = acceptThread_->getLoop();
+    acceptLoop->assertInLoopThread();
 
     char buf[64];
     snprintf(buf, sizeof(buf), "%s#%d", ipPort_.toIpPort().c_str(), nextConnId_);
@@ -55,10 +68,10 @@ void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     InetAddress localAddr("0.0.0.0", 0);
     sockets::getLocalAddr(sockfd, localAddr);
 
-    auto new_loop = threadPool_->getNextLoop();
+    auto* newLoop = threadPool_ ? threadPool_->getNextLoop() : acceptLoop;
 
     TcpConnectionPtr conn = std::make_shared<TcpConnection>(
-        new_loop, connName, sockfd, localAddr, peerAddr);
+        newLoop, connName, sockfd, localAddr, peerAddr);
 
     connections_[connName] = conn;
 
@@ -76,22 +89,23 @@ void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     conn->setMessageCallback(messageCallback_);
     conn->setWriteCompleteCallback(writeCompleteCallback_);
 
-    new_loop->runInLoop([conn]() {
+    newLoop->runInLoop([conn]() {
         conn->connectEstablished();
     });
 }
 
 void TcpServer::removeConnection(const TcpConnectionPtr& conn) {
-    loop_->runInLoop([this, conn]() {
+    acceptThread_->getLoop()->runInLoop([this, conn]() {
         removeConnectionInLoop(conn);
     });
 }
 
 void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn) {
-    loop_->assertInLoopThread();
+    acceptThread_->getLoop()->assertInLoopThread();
     size_t n = connections_.erase(conn->name());
     if (n > 0) {
-        LOG_INFO("TcpServer [{}] connection [{}] removed, {} alive", name_, conn->name(), connections_.size());
+        LOG_INFO("TcpServer [{}] connection [{}] removed, {} alive",
+                 name_, conn->name(), connections_.size());
         conn->getLoop()->queueInLoop([conn]() {
             conn->connectDestroyed();
         });
