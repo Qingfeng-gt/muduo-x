@@ -4,37 +4,34 @@
 
 #include "EventLoop.h"
 #include "Channel.h"
-#include "SocketOps.h"
-#include "muduox/base/Platform.h"
+#include "muduox/net/tcp/SocketOps.h"
+#include "muduox/base/platform/Platform.h"
+#include "muduox/base/logging/Logging.h"
 
 #include <cassert>
 
 namespace muduox {
 
-// 线程局部存储：当前线程的 EventLoop（确保 one loop per thread）
 thread_local EventLoop* t_loopInThisThread = nullptr;
 
-// poll 超时时间（毫秒）。用非无限超时避免 poll 永远阻塞
 static constexpr int kPollTimeMs = 10000;
 
 EventLoop::EventLoop() {
-    // 确保当前线程还没有 EventLoop（one loop per thread）
     assert(t_loopInThisThread == nullptr);
     t_loopInThisThread = this;
 
     threadId_ = std::this_thread::get_id();
 
-    // 创建 Poller
     poller_ = Poller::create(this);
 
-    // 创建 wakeup 用的 socketpair
     intptr_t ret = sockets::createTcpSocketPair(wakeupFds_);
     assert(ret == 0);  (void)ret;
 
-    // 创建 wakeup channel，监听 wakeupFds_[0] 的可读事件
     wakeupChannel_ = std::make_unique<Channel>(this, wakeupFds_[0]);
     wakeupChannel_->setReadCallback([this]() { handleWakeup(); });
     wakeupChannel_->enableReading();
+
+    LOG_INFO("EventLoop created in thread {}", std::hash<std::thread::id>{}(threadId_));
 }
 
 EventLoop::~EventLoop() {
@@ -68,7 +65,7 @@ void EventLoop::loop() {
 
 void EventLoop::quit() {
     quit_ = true;
-    // 如果不在 loop 线程，需要 wakeup 让 poll 返回
+    // wakeup if called from other thread
     if (!isInLoopThread()) {
         wakeup();
     }
@@ -88,7 +85,6 @@ void EventLoop::queueInLoop(Functor cb) {
         pendingFunctors_.push_back(std::move(cb));
     }
 
-    // 不在 loop 线程时需要 wakeup；在 loop 线程但正在处理 pending functors 时也需要
     if (!isInLoopThread()) {
         wakeup();
     }
@@ -126,7 +122,6 @@ void EventLoop::doPendingFunctors() {
     }
 }
 
-// ---- 添加 assertInLoopThread 辅助 ----
 void EventLoop::assertInLoopThread() const {
     assert(isInLoopThread());
 }

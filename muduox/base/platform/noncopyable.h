@@ -7,7 +7,6 @@
 
 namespace muduox {
 
-/// 禁止拷贝和赋值 — 把拷贝构造/拷贝赋值声明为 delete
 class noncopyable {
 public:
     noncopyable() = default;

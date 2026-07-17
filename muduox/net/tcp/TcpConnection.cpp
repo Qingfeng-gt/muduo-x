@@ -3,11 +3,12 @@
 //
 
 #include "TcpConnection.h"
-#include "EventLoop.h"
+#include "muduox/net/core/EventLoop.h"
 #include "Socket.h"
-#include "Channel.h"
+#include "muduox/net/core/Channel.h"
 #include "SocketOps.h"
-#include "muduox/base/Platform.h"
+#include "muduox/base/platform/Platform.h"
+#include "muduox/base/logging/Logging.h"
 
 namespace muduox {
 
@@ -27,12 +28,14 @@ TcpConnection::TcpConnection(EventLoop* loop, const std::string& name,
     channel_->setErrorCallback([this]() { handleError(); });
 }
 
-TcpConnection::~TcpConnection() = default;
+TcpConnection::~TcpConnection() {
+    LOG_INFO("TcpConnection [{}] destroyed", name_);
+}
 
 void TcpConnection::connectEstablished() {
     loop_->assertInLoopThread();
     state_ = kConnected;
-    channel_->enableReading();  // 开始监听读事件
+    channel_->enableReading();
 
     if (connectionCallback_) {
         connectionCallback_(shared_from_this());
@@ -43,10 +46,8 @@ void TcpConnection::connectDestroyed() {
     loop_->assertInLoopThread();
     channel_->disableAll();
     channel_->remove();
-    socket_.reset();  // 关闭 fd
+    socket_.reset();
 }
-
-// ──── 读 ─────────────────────────────────────────────
 
 void TcpConnection::handleRead() {
     int savedErrno = 0;
@@ -59,11 +60,10 @@ void TcpConnection::handleRead() {
     } else if (n == 0) {
         handleClose();
     } else {
+        LOG_ERROR("TcpConnection::handleRead [{}] fd={} error: {}", name_, channel_->fd(), savedErrno);
         handleError();
     }
 }
-
-// ──── 写 ─────────────────────────────────────────────
 
 void TcpConnection::handleWrite() {
     if (channel_->isWriting()) {
@@ -84,13 +84,11 @@ void TcpConnection::handleWrite() {
                 }
             }
         } else {
-            // 写出错
+            LOG_ERROR("TcpConnection::handleWrite [{}] fd={} error: {}", name_, channel_->fd(), SOCKET_GET_ERROR());
             handleError();
         }
     }
 }
-
-// ──── 发送 ───────────────────────────────────────────
 
 void TcpConnection::send(const char* message, size_t len) {
     if (state_ == kConnected) {
@@ -155,8 +153,6 @@ void TcpConnection::sendInLoop(const char* data, size_t len) {
     }
 }
 
-// ──── 关闭 ───────────────────────────────────────────
-
 void TcpConnection::shutdown() {
     if (state_ == kConnected) {
         state_ = kDisconnecting;
@@ -179,8 +175,6 @@ void TcpConnection::forceClose() {
         loop_->queueInLoop([this]() { handleClose(); });
     }
 }
-
-// ──── 关闭/错误 ──────────────────────────────────────
 
 void TcpConnection::handleClose() {
     state_ = kDisconnected;

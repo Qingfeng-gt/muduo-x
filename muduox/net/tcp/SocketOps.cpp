@@ -3,7 +3,7 @@
 //
 
 #include "SocketOps.h"
-#include "muduox/base/Platform.h"
+#include "muduox/base/platform/Platform.h"
 #include <cstdio>
 #include <cstring>
 
@@ -57,7 +57,6 @@ namespace muduox::sockets {
             return -1;
         }
 
-        // 创建客户端 socket 并 connect
         auto client = SOCKET_CREATE();
         if (client == SOCKET_INVALID) {
             SOCKET_CLOSE(listener);
@@ -95,7 +94,6 @@ namespace muduox::sockets {
             return -1;
         }
 
-        // 关闭监听 socket
         SOCKET_CLOSE(listener);
 
         fds[0] = static_cast<intptr_t>(client);

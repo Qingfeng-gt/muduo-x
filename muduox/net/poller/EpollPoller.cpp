@@ -3,11 +3,9 @@
 //
 
 #include "EpollPoller.h"
-#include "Channel.h"
+#include "muduox/net/core/Channel.h"
 
-#ifdef _WIN32
-// Windows 上没有 epoll，此文件仅用于占位以避免编译错误
-#else
+#ifndef _WIN32
 #include <sys/epoll.h>
 #include <unistd.h>
 #endif
@@ -43,7 +41,6 @@ void EpollPoller::poll(int timeoutMs, ChannelList* activeChannels) {
             channel->setRevents(revents);
             activeChannels->push_back(channel);
         }
-        // 事件表满了就扩容
         if (numEvents == static_cast<int>(events_.size())) {
             events_.resize(events_.size() * 2);
         }

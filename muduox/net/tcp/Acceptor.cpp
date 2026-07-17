@@ -3,9 +3,10 @@
 //
 
 #include "Acceptor.h"
-#include "EventLoop.h"
+#include "muduox/net/core/EventLoop.h"
 #include "InetAddress.h"
 #include "SocketOps.h"
+#include "muduox/base/logging/Logging.h"
 
 namespace muduox {
 
@@ -39,10 +40,15 @@ void Acceptor::handleRead() {
         if (newConnectionCallback_) {
             newConnectionCallback_(connfd, peerAddr);
         } else {
+            LOG_INFO("Acceptor: no callback set, closing fd={}", connfd);
             sockets::close(connfd);
         }
+    } else {
+        int err = SOCKET_GET_ERROR();
+        if (err != SOCKET_EWOULDBLOCK) {
+            LOG_ERROR("Acceptor::handleRead accept error: {}", err);
+        }
     }
-    // EAGAIN 等可恢复错误直接忽略，等待下次事件
 }
 
 } // namespace muduox

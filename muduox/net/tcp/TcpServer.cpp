@@ -5,7 +5,8 @@
 #include "TcpServer.h"
 #include "TcpConnection.h"
 #include "Acceptor.h"
-#include "EventLoop.h"
+#include "muduox/net/core/EventLoop.h"
+#include "muduox/base/logging/Logging.h"
 
 namespace muduox {
 
@@ -22,11 +23,14 @@ TcpServer::TcpServer(EventLoop* loop, const InetAddress& listenAddr,
         });
 }
 
-TcpServer::~TcpServer() = default;
+TcpServer::~TcpServer() {
+    LOG_INFO("TcpServer [{}] destroyed", name_);
+}
 
 void TcpServer::start() {
     if (!started_) {
         started_ = true;
+        LOG_INFO("TcpServer [{}] starting on {}", name_, ipPort_.toIpPort());
         loop_->runInLoop([this]() {
             acceptor_->listen();
         });
@@ -41,19 +45,19 @@ void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     ++nextConnId_;
     std::string connName = name_ + "-" + buf;
 
-    InetAddress localAddr("0.0.0.0", 0); // TODO: 通过 getsockname 获取真实本地地址
+    InetAddress localAddr("0.0.0.0", 0);
     TcpConnectionPtr conn = std::make_shared<TcpConnection>(
         loop_, connName, sockfd, localAddr, peerAddr);
 
     connections_[connName] = conn;
 
-    // 设置回调：通知用户 + 断开时自动清理
+    LOG_INFO("TcpServer [{}] new connection [{}] from {}", name_, connName, peerAddr.toIpPort());
+
     conn->setConnectionCallback(
         [this, connName](const TcpConnectionPtr& c) {
             if (!c->connected()) {
                 removeConnection(c);
             }
-            // 如果用户也设置了 connectionCallback，一并调用
             if (connectionCallback_) {
                 connectionCallback_(c);
             }
@@ -61,7 +65,6 @@ void TcpServer::newConnection(intptr_t sockfd, const InetAddress& peerAddr) {
     conn->setMessageCallback(messageCallback_);
     conn->setWriteCompleteCallback(writeCompleteCallback_);
 
-    // 在 loop 线程中完成连接建立
     conn->connectEstablished();
 }
 
@@ -75,10 +78,9 @@ void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn) {
     loop_->assertInLoopThread();
     size_t n = connections_.erase(conn->name());
     if (n > 0) {
-        // 用 queueInLoop 延迟清理，确保当前 channel 事件处理完成后才销毁
+        LOG_INFO("TcpServer [{}] connection [{}] removed, {} alive", name_, conn->name(), connections_.size());
         loop_->queueInLoop([conn]() {
             conn->connectDestroyed();
-            // conn 析构 → Socket 析构 → fd close
         });
     }
 }

@@ -5,8 +5,8 @@
 #ifndef MUDUOX_TCPCONNECTION_H
 #define MUDUOX_TCPCONNECTION_H
 
-#include "muduox/base/noncopyable.h"
-#include "Callbacks.h"
+#include "muduox/base/platform/noncopyable.h"
+#include "muduox/net/core/Callbacks.h"
 #include "InetAddress.h"
 #include "Buffer.h"
 #include <memory>
@@ -18,10 +18,7 @@ class EventLoop;
 class Socket;
 class Channel;
 
-///
-/// TCP 连接 — 管理一条 TCP 连接的生命周期和数据收发。
-/// 使用 shared_ptr 管理，在回调中保证生命周期。
-///
+// Manages a TCP connection lifecycle. Shared pointer ownership.
 class TcpConnection : noncopyable,
                       public std::enable_shared_from_this<TcpConnection> {
 public:
@@ -38,23 +35,19 @@ public:
     const InetAddress& peerAddress() const { return peerAddr_; }
     bool connected() const { return state_ == kConnected; }
 
-    // ---- 回调设置 ----
     void setConnectionCallback(ConnectionCallback cb)   { connectionCallback_ = std::move(cb); }
     void setMessageCallback(MessageCallback cb)         { messageCallback_ = std::move(cb); }
     void setWriteCompleteCallback(WriteCompleteCallback cb) { writeCompleteCallback_ = std::move(cb); }
 
-    // ---- 连接管理 ----
-    void connectEstablished();   // 新连接建立后调用（注册到 EventLoop）
-    void connectDestroyed();     // 连接断开后调用（清理资源）
+    void connectEstablished();
+    void connectDestroyed();
 
-    // ---- 发送数据 ----
     void send(const char* message, size_t len);
     void send(const std::string& message);
     void send(Buffer* buf);
 
-    // ---- 关闭 ----
-    void shutdown();             // 优雅关闭（半关闭写端）
-    void forceClose();           // 强制关闭
+    void shutdown();
+    void forceClose();
 
 private:
     void handleRead();
@@ -75,8 +68,8 @@ private:
     const InetAddress localAddr_;
     const InetAddress peerAddr_;
 
-    Buffer inputBuffer_;   // 接收缓冲区
-    Buffer outputBuffer_;  // 发送缓冲区
+    Buffer inputBuffer_;
+    Buffer outputBuffer_;
 
     ConnectionCallback    connectionCallback_;
     MessageCallback       messageCallback_;

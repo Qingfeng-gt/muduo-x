@@ -7,7 +7,6 @@
 
 namespace muduox {
 
-/// 标记为可拷贝
 class copyable {};
 
 } // namespace muduox

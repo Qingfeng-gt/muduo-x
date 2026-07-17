@@ -5,9 +5,9 @@
 #ifndef MUDUOX_ACCEPTOR_H
 #define MUDUOX_ACCEPTOR_H
 
-#include "muduox/base/noncopyable.h"
+#include "muduox/base/platform/noncopyable.h"
 #include "Socket.h"
-#include "Channel.h"
+#include "muduox/net/core/Channel.h"
 #include <functional>
 
 namespace muduox {
@@ -15,10 +15,7 @@ namespace muduox {
 class EventLoop;
 class InetAddress;
 
-///
-/// 监听器 — 绑定端口，接受新连接。
-/// 拥有 listen socket 及其 Channel，只在 EventLoop 线程中操作。
-///
+// Accepts new connections on a listen socket.
 class Acceptor : noncopyable {
 public:
     using NewConnectionCallback = std::function<void(intptr_t sockfd, const InetAddress& peerAddr)>;
@@ -34,7 +31,7 @@ public:
     }
 
 private:
-    void handleRead();  // Channel 可读回调 → accept
+    void handleRead();
 
     EventLoop* loop_;
     Socket acceptSocket_;

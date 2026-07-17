@@ -8,17 +8,13 @@
 #include <cstdint>
 #include <cstddef>
 
-//平台sockt抽象层
-
 namespace muduox::sockets {
     void startup();
     void cleanup();
 
-    // ---- 创建 ----
-    intptr_t createTcpSocket();            // socket() + nonblock
-    intptr_t createTcpSocketPair(intptr_t fds[2]); // wakeup 用
+    intptr_t createTcpSocket();
+    intptr_t createTcpSocketPair(intptr_t fds[2]);
 
-    // ---- 操作 ----
     void bind(intptr_t fd, uint32_t ip, uint16_t port);
     void listen(intptr_t fd);
     intptr_t accept(intptr_t fd, uint32_t* ip, uint16_t* port);
@@ -30,7 +26,6 @@ namespace muduox::sockets {
     void setTcpNoDelay(intptr_t fd, bool on);
     void setKeepAlive(intptr_t fd, bool on);
 
-    // ---- 地址 ----
     uint32_t hostToNetwork32(uint32_t host);
     uint16_t hostToNetwork16(uint16_t host);
     uint32_t networkToHost32(uint32_t net);

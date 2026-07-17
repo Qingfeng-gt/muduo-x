@@ -5,7 +5,7 @@
 #ifndef MUDUOX_BUFFER_H
 #define MUDUOX_BUFFER_H
 
-#include "muduox/base/Platform.h"
+#include "muduox/base/platform/Platform.h"
 
 #include <vector>
 #include <string>
@@ -13,14 +13,7 @@
 
 namespace muduox {
 
-///
-/// 应用层缓冲区。
-/// 使用 readIndex / writeIndex 管理可读/可写区域，避免数据拷贝。
-///
-/// Layout:
-///   [prependable] [readable] [writable]
-///   0             ^readIndex  ^writeIndex  size()
-///
+// Application-level buffer. Uses readIndex/writeIndex to manage readable/writable regions.
 class Buffer {
 public:
     static constexpr size_t kInitialSize = 1024;
@@ -28,7 +21,6 @@ public:
 
     Buffer() : buffer_(kPrependSize + kInitialSize), readIndex_(kPrependSize), writeIndex_(kPrependSize) {}
 
-    // ---- 可读数据 ----
     const char* peek() const { return begin() + readIndex_; }
     char*       peek()       { return begin() + readIndex_; }
 
@@ -38,19 +30,14 @@ public:
     void retrieve(size_t len);
     void retrieveAll();
 
-    // ---- 取数据为 string ----
     std::string retrieveAsString(size_t len);
     std::string retrieveAllAsString();
 
-    // ---- 写数据 ----
     void append(const char* data, size_t len);
     void append(std::string_view sv) { append(sv.data(), sv.size()); }
 
-    // ---- 从 fd 读 ----
-    // 返回读取的字节数，返回 0 表示对端关闭
     ssize_t readFd(intptr_t fd, int* savedErrno);
 
-    // ---- 容量 ----
     size_t writableBytes() const { return buffer_.size() - writeIndex_; }
     size_t prependableBytes() const { return readIndex_; }
 

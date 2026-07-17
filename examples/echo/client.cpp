@@ -1,10 +1,10 @@
-#include "muduox/net/EventLoop.h"
-#include "muduox/net/Socket.h"
-#include "muduox/net/InetAddress.h"
-#include "muduox/net/Channel.h"
-#include "muduox/net/SocketOps.h"
-#include "muduox/base/Platform.h"
-#include <iostream>
+#include "muduox/net/core/EventLoop.h"
+#include "muduox/net/tcp/Socket.h"
+#include "muduox/net/tcp/InetAddress.h"
+#include "muduox/net/core/Channel.h"
+#include "muduox/net/tcp/SocketOps.h"
+#include "muduox/base/platform/Platform.h"
+#include "muduox/base/logging/Logging.h"
 #include <string>
 #include <cstring>
 #include <cassert>
@@ -12,59 +12,49 @@
 int main() {
     muduox::sockets::startup();
 
-    // ── 1. 先创建 EventLoop（含 IOCP） ──
     muduox::EventLoop loop;
-
-    // ── 2. 创建非阻塞 socket ──
     muduox::Socket sock;
     muduox::InetAddress serverAddr("127.0.0.1", 8888);
-
-    // ── 3. 创建 Channel 并注册到 IOCP（必须早于 connect！） ──
-    // Windows IOCP: CreateIoCompletionPort 必须在 connect() 之前调用，
-    // 否则 socket 进入"正在连接"状态后 CreateIoCompletionPort 会返回 ERROR_INVALID_PARAMETER。
     muduox::Channel channel(&loop, sock.fd());
     std::string sendMsg = "Hello echo server!";
     bool writeDone = false;
 
-    // ── 读回调 ──
     channel.setReadCallback([&]() {
         char buf[1024];
         int n = static_cast<int>(SOCKET_RECV(sock.fd(), buf, sizeof(buf)));
         if (n > 0) {
             std::string echoed(buf, n);
-            std::cout << "Received: " << echoed << std::endl;
+            LOG_INFO("Received: {}", echoed);
             assert(echoed == sendMsg);
-            std::cout << "PASS: echo matches!" << std::endl;
+            LOG_INFO("PASS: echo matches!");
             loop.quit();
         } else if (n == 0) {
-            std::cout << "Server closed connection." << std::endl;
+            LOG_INFO("Server closed connection.");
             loop.quit();
         } else {
-            std::cerr << "recv error: " << SOCKET_GET_ERROR() << std::endl;
+            LOG_ERROR("recv error: {}", SOCKET_GET_ERROR());
             loop.quit();
         }
     });
 
-    // ── 写回调：连接完成后发送数据 ──
     channel.setWriteCallback([&]() {
         if (writeDone) return;
 
-        // 检查非阻塞 connect 是否真正成功
         int err = 0;
         socklen_t len = sizeof(err);
         SOCKET_GETSOCKOPT(sock.fd(), SOL_SOCKET, SO_ERROR, &err, &len);
         if (err != 0) {
-            std::cerr << "Connect error: " << err << std::endl;
+            LOG_ERROR("Connect error: {}", err);
             loop.quit();
             return;
         }
 
         writeDone = true;
-        std::cout << "Connected. Sending: " << sendMsg << std::endl;
+        LOG_INFO("Connected. Sending: {}", sendMsg);
 
         int n = static_cast<int>(SOCKET_SEND(sock.fd(), sendMsg.data(), sendMsg.size()));
         if (n < 0) {
-            std::cerr << "send failed: " << SOCKET_GET_ERROR() << std::endl;
+            LOG_ERROR("send failed: {}", SOCKET_GET_ERROR());
             loop.quit();
         } else {
             channel.disableWriting();
@@ -72,28 +62,24 @@ int main() {
     });
 
     channel.setErrorCallback([&]() {
-        std::cerr << "Socket error (server may not be running)." << std::endl;
+        LOG_ERROR("Socket error (server may not be running).");
         loop.quit();
     });
 
-    // ── 注册到 IOCP（先于 connect）──
-    channel.enableWriting();
-    channel.enableReading();
-
-    // ── 4. 非阻塞 connect（必须在 CreateIoCompletionPort 之后）──
-    std::cout << "Connecting to 127.0.0.1:8888 ..." << std::endl;
+    LOG_INFO("Connecting to 127.0.0.1:8888 ...");
     int ret = sock.connect(serverAddr);
     if (ret < 0) {
         int err = SOCKET_GET_ERROR();
         if (err != SOCKET_EWOULDBLOCK) {
-            std::cerr << "connect failed: " << err << std::endl;
+            LOG_ERROR("connect failed: {}", err);
             return 1;
         }
     }
 
+    channel.enableWriting();
+    channel.enableReading();
 
-
-    std::cout << "Starting event loop..." << std::endl;
+    LOG_INFO("Starting event loop...");
     loop.loop();
 
     muduox::sockets::cleanup();
